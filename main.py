@@ -17,14 +17,14 @@ requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 class API(object):
 	def __init__(self):
 		self.s=requests.Session()
-		self.s.headers.update({'Content-Type':'text/json','User-Agent':'global/434 CFNetwork/808.2.16 Darwin/16.3.0','Accept-Language':'en-gb','X-Unity-Version':'2017.4.17f1'})
+		self.s.headers.update({'Content-Type':'text/json','User-Agent':'global/434 CFNetwork/808.2.16 Darwin/16.3.0','Accept-Language':'en-gb','X-Unity-Version':'2019.3.0f6'})
 		self.s.verify=False
 		if 'win' in sys.platform:
 			self.s.proxies.update({'http': 'http://127.0.0.1:8888','https': 'https://127.0.0.1:8888',})
 		self.crypter=RijndaelEncryptor()
 		self.key='abcdefghijkrstuv024680wxyzlmnopq'
 		self.seq=2
-		self.version='1.43.12'
+		self.version='1.58.8'
 		self.db=Database()
 		
 	def reroll(self):
@@ -75,21 +75,24 @@ class API(object):
 		if 'seq' in jdata:	jdata['seq']=str(self.seq)
 		if 'pmang_usn' in jdata:	jdata['pmang_usn']=self.access_token.split('|')[0]
 		data=json.dumps(jdata,separators=(',', ':'))
-		if url:
-			r=self.s.post('%s/%s'%(url,inspect.stack()[1][3]),data=self.encrypt(data))
+		if url and '.pmang.cloud' in url:
+			r=self.s.put('%s/%s'%(url,inspect.stack()[1][3]),data=self.encrypt(data))
 		else:
-			r=self.s.post('%s/%s'%(self.game_url,inspect.stack()[1][3]),data=self.encrypt(data))
+			if url:
+				r=self.s.post('%s/%s'%(url,inspect.stack()[1][3]),data=self.encrypt(data))
+			else:
+				r=self.s.post('%s/%s'%(self.game_url,inspect.stack()[1][3]),data=self.encrypt(data))
 		self.seq+=1
 		decoded_data=self.decrypt(r.content)
 		res= json.loads(decoded_data)
-		if 'maintenance' in res:
-			self.log('Server Maintenance..')
-			self.isMaintenance=True
-			exit(1)
 		if 'result' in res and res['result'] <>0:
 			self.log('%s(): %s'%(inspect.stack()[1][3],res['result']))
 		if 'user_id' in res:
 			self.log('hello %s:%s'%(res['user_id'],res['owner_index']))
+		#if inspect.stack()[1][3]=='userCampaignStageStart':
+		#	self.log(data)
+		#	self.log('\n')
+		#	self.log(decoded_data)
 		return res
 		
 	def log(self,msg):
@@ -148,10 +151,11 @@ class API(object):
 
 	def loginUser(self,data):
 		res= self.callAPI(data)
-		if not self.db.getAccount(self.udid):
-			self.db.addAccount(self.udid,res['gold'],res['jewelry'],res['level'],res['owner_index'])
-		else:
-			self.db.updateAccount(self.udid,res['gold'],res['jewelry'],res['level'],res['owner_index'])
+		if 'gold' in res:
+			if not self.db.getAccount(self.udid):
+				self.db.addAccount(self.udid,res['gold'],res['jewelry'],res['level'],res['owner_index'])
+			else:
+				self.db.updateAccount(self.udid,res['gold'],res['jewelry'],res['level'],res['owner_index'])
 		return res
 
 	def userCampaignList(self,data):
@@ -531,6 +535,7 @@ class API(object):
 			pass
 		else:
 			pass
+		#self.getReward(self.missionInvenInsert('{"seq":"67","0":{"code":"%s","value":"1"},"list_count":"1"}'%(id)))			
 
 	def finishQuest(self,campaign_level,campaign_number):
 		self.log('doing campaign_level:%s campaign_number:%s'%(campaign_level,campaign_number))
@@ -553,6 +558,7 @@ class API(object):
 			self.fakerewards(campaign_number)
 
 if __name__ == "__main__":
+	#fuckyou
 	reload(sys)  
 	sys.setdefaultencoding('utf8')
 	a=API()
